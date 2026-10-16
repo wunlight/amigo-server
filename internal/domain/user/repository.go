@@ -4,17 +4,18 @@ import (
 	"context"
 	"errors"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Repository interface {
 	Create(ctx context.Context, input CreateUserInput) (*User, error)
-	FindByID(ctx context.Context, id int64) (*User, error)
+	FindByID(ctx context.Context, id string) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
 	List(ctx context.Context, p ListParams) ([]User, int, error)
-	Update(ctx context.Context, id int64, input UpdateUserInput) (*User, error)
-	Delete(ctx context.Context, id int64) error
+	Update(ctx context.Context, id string, input UpdateUserInput) (*User, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type repository struct {
@@ -23,6 +24,10 @@ type repository struct {
 
 func NewRepository(pool *pgxpool.Pool) Repository {
 	return &repository{pool: pool}
+}
+
+func parseUUID(id string) (uuid.UUID, error) {
+	return uuid.Parse(id)
 }
 
 func (r *repository) Create(ctx context.Context, input CreateUserInput) (*User, error) {
@@ -35,10 +40,14 @@ func (r *repository) Create(ctx context.Context, input CreateUserInput) (*User, 
 	return u, err
 }
 
-func (r *repository) FindByID(ctx context.Context, id int64) (*User, error) {
+func (r *repository) FindByID(ctx context.Context, id string) (*User, error) {
+	uid, err := parseUUID(id)
+	if err != nil {
+		return nil, err
+	}
 	u := &User{}
-	err := r.pool.QueryRow(ctx,
-		`SELECT id, name, email, created_at, updated_at FROM users WHERE id=$1`, id,
+	err = r.pool.QueryRow(ctx,
+		`SELECT id, name, email, created_at, updated_at FROM users WHERE id=$1`, uid,
 	).Scan(&u.ID, &u.Name, &u.Email, &u.CreatedAt, &u.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -92,16 +101,20 @@ func (r *repository) List(ctx context.Context, p ListParams) ([]User, int, error
 	return users, total, rows.Err()
 }
 
-func (r *repository) Update(ctx context.Context, id int64, input UpdateUserInput) (*User, error) {
+func (r *repository) Update(ctx context.Context, id string, input UpdateUserInput) (*User, error) {
+	uid, err := parseUUID(id)
+	if err != nil {
+		return nil, err
+	}
 	u := &User{}
-	err := r.pool.QueryRow(ctx,
+	err = r.pool.QueryRow(ctx,
 		`UPDATE users SET
 			name = COALESCE($2, name),
 			email = COALESCE($3, email),
 			updated_at = NOW()
 		 WHERE id=$1
 		 RETURNING id, name, email, created_at, updated_at`,
-		id, input.Name, input.Email,
+		uid, input.Name, input.Email,
 	).Scan(&u.ID, &u.Name, &u.Email, &u.CreatedAt, &u.UpdatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
@@ -109,8 +122,12 @@ func (r *repository) Update(ctx context.Context, id int64, input UpdateUserInput
 	return u, err
 }
 
-func (r *repository) Delete(ctx context.Context, id int64) error {
-	ct, err := r.pool.Exec(ctx, `DELETE FROM users WHERE id=$1`, id)
+func (r *repository) Delete(ctx context.Context, id string) error {
+	uid, err := parseUUID(id)
+	if err != nil {
+		return err
+	}
+	ct, err := r.pool.Exec(ctx, `DELETE FROM users WHERE id=$1`, uid)
 	if err != nil {
 		return err
 	}
