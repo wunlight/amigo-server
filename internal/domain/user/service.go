@@ -5,10 +5,11 @@ import (
 	"errors"
 	"strings"
 
+	"amigo-server/pkg/apperror"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"amigo-server/pkg/apperror"
 )
 
 type Service interface {
@@ -27,22 +28,17 @@ func NewService(repo Repository) Service {
 	return &service{repo: repo}
 }
 
-func validateUUID(id string) error {
-	if err := uuid.Validate(id); err != nil {
-		return apperror.BadRequest("invalid uuid")
-	}
-	return nil
-}
-
 func (s *service) Create(ctx context.Context, input CreateUserInput) (*User, error) {
 	input.Name = strings.TrimSpace(input.Name)
 	input.Email = strings.TrimSpace(input.Email)
+
 	if input.Name == "" {
 		return nil, apperror.BadRequest("name is required")
 	}
 	if input.Email == "" || !strings.Contains(input.Email, "@") {
 		return nil, apperror.BadRequest("valid email is required")
 	}
+
 	u, err := s.repo.Create(ctx, input)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -51,6 +47,7 @@ func (s *service) Create(ctx context.Context, input CreateUserInput) (*User, err
 		}
 		return nil, apperror.Wrap(err, 500, "failed to create user")
 	}
+
 	return u, nil
 }
 
@@ -58,6 +55,7 @@ func (s *service) GetByID(ctx context.Context, id string) (*User, error) {
 	if err := validateUUID(id); err != nil {
 		return nil, err
 	}
+
 	u, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return nil, apperror.Wrap(err, 500, "failed to get user")
@@ -65,6 +63,7 @@ func (s *service) GetByID(ctx context.Context, id string) (*User, error) {
 	if u == nil {
 		return nil, apperror.NotFound("user not found")
 	}
+
 	return u, nil
 }
 
@@ -76,6 +75,7 @@ func (s *service) List(ctx context.Context, p ListParams) ([]User, int, error) {
 	if users == nil {
 		users = []User{}
 	}
+
 	return users, total, nil
 }
 
@@ -83,6 +83,7 @@ func (s *service) Update(ctx context.Context, id string, input UpdateUserInput) 
 	if err := validateUUID(id); err != nil {
 		return nil, err
 	}
+
 	if input.Name != nil {
 		v := strings.TrimSpace(*input.Name)
 		if v == "" {
@@ -97,6 +98,7 @@ func (s *service) Update(ctx context.Context, id string, input UpdateUserInput) 
 		}
 		input.Email = &v
 	}
+
 	u, err := s.repo.Update(ctx, id, input)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -108,6 +110,7 @@ func (s *service) Update(ctx context.Context, id string, input UpdateUserInput) 
 	if u == nil {
 		return nil, apperror.NotFound("user not found")
 	}
+
 	return u, nil
 }
 
@@ -115,12 +118,21 @@ func (s *service) Delete(ctx context.Context, id string) error {
 	if err := validateUUID(id); err != nil {
 		return err
 	}
+
 	err := s.repo.Delete(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return apperror.NotFound("user not found")
 	}
 	if err != nil {
 		return apperror.Wrap(err, 500, "failed to delete user")
+	}
+
+	return nil
+}
+
+func validateUUID(id string) error {
+	if err := uuid.Validate(id); err != nil {
+		return apperror.BadRequest("invalid uuid")
 	}
 	return nil
 }

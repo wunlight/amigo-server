@@ -35,13 +35,7 @@ func New(pool *pgxpool.Pool) http.Handler {
 		w.Write([]byte(`{"success":true,"data":{"status":"ok"}}`))
 	})
 
-	r.Mount("/api", apiRouter(pool))
+	r.Mount("/api/v1", v1.New(pool))
 
-	return r
-}
-
-func apiRouter(pool *pgxpool.Pool) http.Handler {
-	r := chi.NewRouter()
-	r.Mount("/v1", v1.New(pool))
 	return r
 }

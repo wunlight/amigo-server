@@ -25,5 +25,6 @@ func NewPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 		pool.Close()
 		return nil, err
 	}
+
 	return pool, nil
 }
