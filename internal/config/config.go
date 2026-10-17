@@ -33,13 +33,9 @@ func Load() (*Config, error) {
 		DBSSLMode:  env("DB_SSLMODE", "disable"),
 	}
 
-	if v := os.Getenv("DATABASE_URL"); v != "" {
-		cfg.DatabaseURL = v
-	} else {
-		cfg.DatabaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
-			cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName, cfg.DBSSLMode,
-		)
-	}
+	cfg.DatabaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		cfg.DBUser, cfg.DBPassword, cfg.DBHost, cfg.DBPort, cfg.DBName, cfg.DBSSLMode,
+	)
 
 	return cfg, nil
 }
