@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Service interface {
@@ -18,6 +19,7 @@ type Service interface {
 	List(ctx context.Context, p ListParams) ([]User, int, error)
 	Update(ctx context.Context, id string, input UpdateUserInput) (*User, error)
 	Delete(ctx context.Context, id string) error
+	VerifyPassword(ctx context.Context, email, password string) (*User, error)
 }
 
 type service struct {
@@ -31,6 +33,7 @@ func NewService(repo Repository) Service {
 func (s *service) Create(ctx context.Context, input CreateUserInput) (*User, error) {
 	input.Name = strings.TrimSpace(input.Name)
 	input.Email = strings.TrimSpace(input.Email)
+	input.Password = strings.TrimSpace(input.Password)
 
 	if input.Name == "" {
 		return nil, apperror.BadRequest("name is required")
@@ -38,8 +41,16 @@ func (s *service) Create(ctx context.Context, input CreateUserInput) (*User, err
 	if input.Email == "" || !strings.Contains(input.Email, "@") {
 		return nil, apperror.BadRequest("valid email is required")
 	}
+	if input.Password == "" {
+		return nil, apperror.BadRequest("password is required")
+	}
 
-	u, err := s.repo.Create(ctx, input)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, apperror.Wrap(err, 500, "failed to hash password")
+	}
+
+	u, err := s.repo.Create(ctx, input, string(hashedPassword))
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
@@ -128,6 +139,23 @@ func (s *service) Delete(ctx context.Context, id string) error {
 	}
 
 	return nil
+}
+
+func (s *service) VerifyPassword(ctx context.Context, email, password string) (*User, error) {
+	u, passwordHash, err := s.repo.FindByEmailWithPassword(ctx, email)
+	if err != nil {
+		return nil, apperror.Wrap(err, 500, "failed to verify password")
+	}
+	if u == nil {
+		return nil, apperror.Unauthorized("invalid credentials")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
+	if err != nil {
+		return nil, apperror.Unauthorized("invalid credentials")
+	}
+
+	return u, nil
 }
 
 func validateUUID(id string) error {

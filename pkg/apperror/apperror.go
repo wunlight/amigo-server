@@ -31,6 +31,7 @@ func Wrap(err error, status int, msg string) *AppError {
 func BadRequest(msg string) *AppError { return New(http.StatusBadRequest, msg) }
 func NotFound(msg string) *AppError   { return New(http.StatusNotFound, msg) }
 func Conflict(msg string) *AppError   { return New(http.StatusConflict, msg) }
+func Unauthorized(msg string) *AppError { return New(http.StatusUnauthorized, msg) }
 func Internal(msg string) *AppError   { return New(http.StatusInternalServerError, msg) }
 
 func Status(err error) int {
