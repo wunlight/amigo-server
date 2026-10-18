@@ -13,7 +13,6 @@ type Repository interface {
 	Create(ctx context.Context, input CreateUserInput, passwordHash string) (*User, error)
 	FindByID(ctx context.Context, id string) (*User, error)
 	FindByEmail(ctx context.Context, email string) (*User, error)
-	FindByEmailWithPassword(ctx context.Context, email string) (*User, string, error)
 	List(ctx context.Context, p ListParams) ([]User, int, error)
 	Update(ctx context.Context, id string, input UpdateUserInput) (*User, error)
 	Delete(ctx context.Context, id string) error
@@ -96,31 +95,6 @@ func (r *repository) FindByEmail(ctx context.Context, email string) (*User, erro
 	}
 
 	return u, err
-}
-
-func (r *repository) FindByEmailWithPassword(ctx context.Context, email string) (*User, string, error) {
-	u := &User{}
-	var passwordHash string
-
-	query := `
-	  SELECT id, name, email, password_hash, created_at, updated_at
-		FROM users
-		WHERE email = $1
-	`
-
-	err := r.pool.QueryRow(ctx, query, email).Scan(
-		&u.ID,
-		&u.Name,
-		&u.Email,
-		&passwordHash,
-		&u.CreatedAt,
-		&u.UpdatedAt,
-	)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, "", nil
-	}
-
-	return u, passwordHash, err
 }
 
 func (r *repository) List(ctx context.Context, p ListParams) ([]User, int, error) {

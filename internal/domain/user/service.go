@@ -19,7 +19,6 @@ type Service interface {
 	List(ctx context.Context, p ListParams) ([]User, int, error)
 	Update(ctx context.Context, id string, input UpdateUserInput) (*User, error)
 	Delete(ctx context.Context, id string) error
-	VerifyPassword(ctx context.Context, email, password string) (*User, error)
 }
 
 type service struct {
@@ -139,23 +138,6 @@ func (s *service) Delete(ctx context.Context, id string) error {
 	}
 
 	return nil
-}
-
-func (s *service) VerifyPassword(ctx context.Context, email, password string) (*User, error) {
-	u, passwordHash, err := s.repo.FindByEmailWithPassword(ctx, email)
-	if err != nil {
-		return nil, apperror.Wrap(err, 500, "failed to verify password")
-	}
-	if u == nil {
-		return nil, apperror.Unauthorized("invalid credentials")
-	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
-	if err != nil {
-		return nil, apperror.Unauthorized("invalid credentials")
-	}
-
-	return u, nil
 }
 
 func validateUUID(id string) error {

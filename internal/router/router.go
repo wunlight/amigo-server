@@ -9,10 +9,11 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"amigo-server/internal/config"
 	v1 "amigo-server/internal/router/v1"
 )
 
-func New(pool *pgxpool.Pool) http.Handler {
+func New(pool *pgxpool.Pool, cfg *config.Config) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -35,7 +36,9 @@ func New(pool *pgxpool.Pool) http.Handler {
 		w.Write([]byte(`{"success":true,"data":{"status":"ok"}}`))
 	})
 
-	r.Mount("/api/v1", v1.New(pool))
+	r.Route("/api/v1", func(r chi.Router) {
+		v1.RegisterRoutes(r, pool, cfg)
+	})
 
 	return r
 }

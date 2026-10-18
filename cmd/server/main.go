@@ -29,7 +29,7 @@ func main() {
 	}
 	defer pool.Close()
 
-	handler := router.New(pool)
+	handler := router.New(pool, cfg)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.AppPort,

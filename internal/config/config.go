@@ -8,15 +8,17 @@ import (
 )
 
 type Config struct {
-	AppEnv      string
-	AppPort     string
-	DBHost      string
-	DBPort      string
-	DBUser      string
-	DBPassword  string
-	DBName      string
-	DBSSLMode   string
-	DatabaseURL string
+	AppEnv       string
+	AppPort      string
+	DBHost       string
+	DBPort       string
+	DBUser       string
+	DBPassword   string
+	DBName       string
+	DBSSLMode    string
+	DatabaseURL  string
+	JWTSecret    string
+	JWTExpiry    string
 }
 
 func Load() (*Config, error) {
@@ -31,6 +33,8 @@ func Load() (*Config, error) {
 		DBPassword: env("DB_PASSWORD", "postgres"),
 		DBName:     env("DB_NAME", "amigo_db"),
 		DBSSLMode:  env("DB_SSLMODE", "disable"),
+		JWTSecret:  env("JWT_SECRET", "your-super-secret-jwt-key-change-in-production"),
+		JWTExpiry:  env("JWT_EXPIRY", "24h"),
 	}
 
 	cfg.DatabaseURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s",
