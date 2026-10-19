@@ -5,8 +5,6 @@ import (
 
 	"amigo-server/pkg/apperror"
 	"amigo-server/pkg/response"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type Handler struct {
@@ -55,12 +53,6 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	response.Success(w, http.StatusOK, meResp)
 }
 
-func (h *Handler) RegisterRoutes(r chi.Router) {
-	r.Post("/login", h.Login)
-	r.Post("/logout", h.Logout)
-	r.Get("/me", h.Me)
-}
-
 const authCookieName = "access_token"
 
 func setAuthCookie(w http.ResponseWriter, token string) {
@@ -69,9 +61,9 @@ func setAuthCookie(w http.ResponseWriter, token string) {
 		Value:    token,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   false, // Set to true in production with HTTPS
+		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   60 * 60 * 24, // 24 hours
+		MaxAge:   60 * 60 * 24,
 	})
 }
 

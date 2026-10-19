@@ -15,7 +15,9 @@ func RegisterAuthRoutes(r chi.Router, pool *pgxpool.Pool, cfg *config.Config) {
 	authSvc := auth.NewService(authRepo, cfg.JWTSecret, parseDuration(cfg.JWTExpiry))
 	authHandler := auth.NewHandler(authSvc)
 
-	authHandler.RegisterRoutes(r)
+	r.Post("/login", authHandler.Login)
+	r.Post("/logout", authHandler.Logout)
+	r.Get("/me", authHandler.Me)
 }
 
 func parseDuration(s string) time.Duration {

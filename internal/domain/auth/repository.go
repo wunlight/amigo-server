@@ -3,8 +3,8 @@ package auth
 import (
 	"context"
 	"errors"
+	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -26,8 +26,8 @@ type User struct {
 	ID        string
 	Name      string
 	Email     string
-	CreatedAt string
-	UpdatedAt string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 func (r *repository) FindByEmailWithPassword(ctx context.Context, email string) (*User, string, error) {
@@ -76,8 +76,4 @@ func (r *repository) FindByID(ctx context.Context, id string) (*User, error) {
 	}
 
 	return u, err
-}
-
-func parseUUID(id string) (uuid.UUID, error) {
-	return uuid.Parse(id)
 }
