@@ -11,7 +11,10 @@ import (
 
 type contextKey string
 
-const UserIDKey contextKey = "user_id"
+const (
+	UserIDKey       contextKey = "user_id"
+	UserUUIDKey     contextKey = "user_uuid"
+)
 
 func AuthMiddleware(authSvc auth.Service) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -22,7 +25,7 @@ func AuthMiddleware(authSvc auth.Service) func(http.Handler) http.Handler {
 				return
 			}
 
-			meResp, err := authSvc.Me(r.Context(), token)
+			userUUID, meResp, err := authSvc.MeWithUUID(r.Context(), token)
 			if err != nil {
 				response.Error(w, apperror.Status(err), apperror.Message(err))
 				return
@@ -30,6 +33,7 @@ func AuthMiddleware(authSvc auth.Service) func(http.Handler) http.Handler {
 
 			ctx := r.Context()
 			ctx = contextWithUserID(ctx, meResp.Name)
+			ctx = contextWithUserUUID(ctx, userUUID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -39,9 +43,18 @@ func contextWithUserID(ctx context.Context, userID string) context.Context {
 	return context.WithValue(ctx, UserIDKey, userID)
 }
 
+func contextWithUserUUID(ctx context.Context, userUUID string) context.Context {
+	return context.WithValue(ctx, UserUUIDKey, userUUID)
+}
+
 func GetUserID(ctx context.Context) (string, bool) {
 	userID, ok := ctx.Value(UserIDKey).(string)
 	return userID, ok
+}
+
+func GetUserUUID(ctx context.Context) (string, bool) {
+	userUUID, ok := ctx.Value(UserUUIDKey).(string)
+	return userUUID, ok
 }
 
 const authCookieName = "access_token"
@@ -63,7 +76,7 @@ func OptionalAuthMiddleware(authSvc auth.Service) func(http.Handler) http.Handle
 				return
 			}
 
-			meResp, err := authSvc.Me(r.Context(), token)
+			userUUID, meResp, err := authSvc.MeWithUUID(r.Context(), token)
 			if err != nil {
 				next.ServeHTTP(w, r)
 				return
@@ -71,6 +84,7 @@ func OptionalAuthMiddleware(authSvc auth.Service) func(http.Handler) http.Handle
 
 			ctx := r.Context()
 			ctx = contextWithUserID(ctx, meResp.Name)
+			ctx = contextWithUserUUID(ctx, userUUID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

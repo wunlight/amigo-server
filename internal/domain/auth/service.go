@@ -15,6 +15,7 @@ type Service interface {
 	Login(ctx context.Context, input LoginInput) (string, *LoginResponse, error)
 	Logout() string
 	Me(ctx context.Context, tokenString string) (*MeResponse, error)
+	MeWithUUID(ctx context.Context, tokenString string) (string, *MeResponse, error)
 	VerifyPassword(ctx context.Context, email, password string) (*User, error)
 }
 
@@ -51,25 +52,30 @@ func (s *service) Logout() string {
 }
 
 func (s *service) Me(ctx context.Context, tokenString string) (*MeResponse, error) {
+	_, resp, err := s.MeWithUUID(ctx, tokenString)
+	return resp, err
+}
+
+func (s *service) MeWithUUID(ctx context.Context, tokenString string) (string, *MeResponse, error) {
 	claims, err := s.parseToken(tokenString)
 	if err != nil {
-		return nil, apperror.Unauthorized("invalid token")
+		return "", nil, apperror.Unauthorized("invalid token")
 	}
 
 	userID, ok := claims["user_id"].(string)
 	if !ok {
-		return nil, apperror.Unauthorized("invalid token claims")
+		return "", nil, apperror.Unauthorized("invalid token claims")
 	}
 
 	u, err := s.repo.FindByID(ctx, userID)
 	if err != nil {
-		return nil, apperror.Wrap(err, 500, "failed to get user")
+		return "", nil, apperror.Wrap(err, 500, "failed to get user")
 	}
 	if u == nil {
-		return nil, apperror.Unauthorized("user not found")
+		return "", nil, apperror.Unauthorized("user not found")
 	}
 
-	return &MeResponse{Name: u.Name}, nil
+	return userID, &MeResponse{Name: u.Name}, nil
 }
 
 func (s *service) VerifyPassword(ctx context.Context, email, password string) (*User, error) {

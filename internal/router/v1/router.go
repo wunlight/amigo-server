@@ -19,4 +19,5 @@ func RegisterRoutes(r chi.Router, pool *pgxpool.Pool, cfg *config.Config) {
 	RegisterUserRoutes(r, pool, cfg)
 	RegisterSparepartRoutes(r, pool, cfg)
 	RegisterOperationRoutes(r, pool, cfg)
+	RegisterSaleRoutes(r, pool, cfg)
 }
