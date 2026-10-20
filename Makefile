@@ -24,9 +24,9 @@ fmt: ## go fmt
 vet: ## go vet
 	go vet ./...
 
-migrate-create: ## Create migration e.g. make migrate-create NAME=create_users_table
+generate: ## Create migration e.g. make generate NAME=create_users_table
 ifndef NAME
-	$(error NAME is required. Usage: make migrate-create NAME=create_users_table)
+	$(error NAME is required. Usage: make generate NAME=create_users_table)
 endif
 	goose -dir $(MIGRATIONS_DIR) create $(NAME) sql
 
@@ -44,5 +44,3 @@ migrate-version: ## Current migration version
 
 migrate-reset: ## Rollback all then migrate up
 	goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" reset
-
-generate: migrate-create ## Alias for migrate-create
