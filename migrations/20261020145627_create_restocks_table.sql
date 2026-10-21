@@ -2,7 +2,7 @@
 CREATE TABLE restocks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL,
-  supplier_name VARCHAR(255) NULL,
+  idempotency_key VARCHAR(255) NOT NULL UNIQUE,
   total_amount INT NOT NULL CHECK (total_amount >= 0),
   notes TEXT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

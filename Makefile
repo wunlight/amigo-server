@@ -36,6 +36,12 @@ migrate-up: ## Run migrations up
 migrate-down: ## Rollback last migration
 	goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" down
 
+migrate-down-to: ## Rollback migration to
+ifndef ID
+	$(error ID is required. Usage: make migrate-down-to ID=<migration_id>)
+endif
+	goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" down-to $(ID)
+
 migrate-status: ## Migration status
 	goose -dir $(MIGRATIONS_DIR) postgres "$(DATABASE_URL)" status
 

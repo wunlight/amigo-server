@@ -65,30 +65,7 @@ CREATE TRIGGER trg_sale_item_stock_deduction
   EXECUTE FUNCTION fn_auto_create_sale_stock_movement();
 -- +goose StatementEnd
 
--- 3. Function & Trigger Restock Item Addition
--- +goose StatementBegin
-CREATE OR REPLACE FUNCTION fn_auto_create_restock_stock_movement()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO stock_movements (sparepart_id, direction, reason, qty, reference_id)
-  VALUES (NEW.sparepart_id, 'IN', 'RESTOCK', NEW.quantity, NEW.restock_id);
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
--- +goose StatementEnd
-
--- +goose StatementBegin
-CREATE TRIGGER trg_restock_item_addition
-  BEFORE INSERT ON restock_items
-  FOR EACH ROW
-  EXECUTE FUNCTION fn_auto_create_restock_stock_movement();
--- +goose StatementEnd
-
 -- +goose Down
-DROP TRIGGER IF EXISTS trg_restock_item_addition ON restock_items;
-DROP FUNCTION IF EXISTS fn_auto_create_restock_stock_movement();
-
 DROP TRIGGER IF EXISTS trg_sale_item_stock_deduction ON sale_sparepart_items;
 DROP FUNCTION IF EXISTS fn_auto_create_sale_stock_movement();
 
