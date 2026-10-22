@@ -17,6 +17,7 @@ const (
 type CartItem struct {
 	Type      CartItemType `json:"type"`
 	ID        string       `json:"id"`
+	Name      string       `json:"name"`
 	Quantity  int          `json:"quantity"`
 	UnitPrice int          `json:"unit_price"`
 }
@@ -28,7 +29,20 @@ type CheckoutPayload struct {
 }
 
 type CheckoutResult struct {
-	SaleID string `json:"sale_id"`
+	SaleID      string         `json:"sale_id"`
+	CreatedAt   time.Time      `json:"created_at"`
+	TotalAmount int            `json:"total_amount"`
+	Items       []CheckoutItem `json:"items"`
+	Notes       string         `json:"notes"`
+}
+
+type CheckoutItem struct {
+	Type      CartItemType `json:"type"`
+	ID        string       `json:"id"`
+	Name      string       `json:"name"`
+	Quantity  int          `json:"quantity"`
+	UnitPrice int          `json:"unit_price"`
+	Subtotal  int          `json:"subtotal"`
 }
 
 func (p *CheckoutPayload) Hash() string {

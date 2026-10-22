@@ -43,11 +43,15 @@ func (s *Service) Checkout(ctx context.Context, userID string, payload CheckoutP
 		if item.ID == "" {
 			return nil, ErrInvalidCartItem
 		}
+		if item.Name == "" {
+			return nil, ErrInvalidCartItem
+		}
 	}
 
 	existingSale, err := s.repo.GetSaleByIdempotencyKey(ctx, payload.IdempotencyKey)
 	if err == nil {
-		return &CheckoutResult{SaleID: existingSale.ID}, nil
+		// Return cached result with items and details
+		return s.buildCheckoutResult(existingSale)
 	}
 	if !errors.Is(err, ErrIdempotencyKeyNotFound) {
 		return nil, err
@@ -62,6 +66,7 @@ func (s *Service) Checkout(ctx context.Context, userID string, payload CheckoutP
 
 	var sparepartItems []SaleSparepartItem
 	var operationItems []SaleOperationItem
+	var checkoutItems []CheckoutItem
 	totalAmount := 0
 
 	for _, item := range payload.Items {
@@ -77,6 +82,14 @@ func (s *Service) Checkout(ctx context.Context, userID string, payload CheckoutP
 				Subtotal:    subtotal,
 				CreatedAt:   now,
 			})
+			checkoutItems = append(checkoutItems, CheckoutItem{
+				Type:      item.Type,
+				ID:        item.ID,
+				Name:      item.Name,
+				Quantity:  item.Quantity,
+				UnitPrice: item.UnitPrice,
+				Subtotal:  subtotal,
+			})
 			totalAmount += subtotal
 
 		case CartItemTypeOperation:
@@ -89,6 +102,14 @@ func (s *Service) Checkout(ctx context.Context, userID string, payload CheckoutP
 				UnitPrice:   item.UnitPrice,
 				Subtotal:    subtotal,
 				CreatedAt:   now,
+			})
+			checkoutItems = append(checkoutItems, CheckoutItem{
+				Type:      item.Type,
+				ID:        item.ID,
+				Name:      item.Name,
+				Quantity:  item.Quantity,
+				UnitPrice: item.UnitPrice,
+				Subtotal:  subtotal,
 			})
 			totalAmount += subtotal
 		}
@@ -132,12 +153,52 @@ func (s *Service) Checkout(ctx context.Context, userID string, payload CheckoutP
 			// Fetch and return the existing sale
 			existingSale, fetchErr := s.repo.GetSaleByIdempotencyKey(ctx, payload.IdempotencyKey)
 			if fetchErr == nil {
-				return &CheckoutResult{SaleID: existingSale.ID}, nil
+				return s.buildCheckoutResult(existingSale)
 			}
 			return nil, fetchErr
 		}
 		return nil, err
 	}
 
-	return &CheckoutResult{SaleID: saleID}, nil
+	return &CheckoutResult{
+		SaleID:      saleID,
+		CreatedAt:   now,
+		TotalAmount: totalAmount,
+		Items:       checkoutItems,
+		Notes:       payload.Notes,
+	}, nil
+}
+
+func (s *Service) buildCheckoutResult(sale *Sale) (*CheckoutResult, error) {
+	checkoutItems := make([]CheckoutItem, 0, len(sale.SparepartItems)+len(sale.OperationItems))
+
+	for _, item := range sale.SparepartItems {
+		checkoutItems = append(checkoutItems, CheckoutItem{
+			Type:      CartItemTypeSparepart,
+			ID:        item.SparepartID,
+			Name:      "", // Name is not stored in DB, will be empty on cache hit
+			Quantity:  item.Quantity,
+			UnitPrice: item.UnitPrice,
+			Subtotal:  item.Subtotal,
+		})
+	}
+
+	for _, item := range sale.OperationItems {
+		checkoutItems = append(checkoutItems, CheckoutItem{
+			Type:      CartItemTypeOperation,
+			ID:        item.OperationID,
+			Name:      "", // Name is not stored in DB, will be empty on cache hit
+			Quantity:  item.Quantity,
+			UnitPrice: item.UnitPrice,
+			Subtotal:  item.Subtotal,
+		})
+	}
+
+	return &CheckoutResult{
+		SaleID:      sale.ID,
+		CreatedAt:   sale.CreatedAt,
+		TotalAmount: sale.TotalAmount,
+		Items:       checkoutItems,
+		Notes:       sale.Notes,
+	}, nil
 }
