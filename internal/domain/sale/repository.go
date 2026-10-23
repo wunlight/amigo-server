@@ -20,6 +20,9 @@ type RepositoryInterface interface {
 	CreateSale(ctx context.Context, tx pgx.Tx, sale *Sale) error
 	CreateSparepartItems(ctx context.Context, tx pgx.Tx, items []SaleSparepartItem) error
 	CreateOperationItems(ctx context.Context, tx pgx.Tx, items []SaleOperationItem) error
+	ListSales(ctx context.Context, userID string, page int, perPage int) ([]Sale, int, error)
+	UpdateSaleStatus(ctx context.Context, saleID string, status string) error
+	GetSaleByID(ctx context.Context, saleID string) (*Sale, error)
 }
 
 type Repository struct {
@@ -105,5 +108,94 @@ func (r *Repository) CreateOperationItems(ctx context.Context, tx pgx.Tx, items 
 		}
 	}
 	r.logger.Debug("operation items created", "sale_id", items[0].SaleID, "count", len(items))
+	return nil
+}
+
+func (r *Repository) GetSaleByID(ctx context.Context, saleID string) (*Sale, error) {
+	var sale Sale
+	err := r.db.QueryRow(ctx, `
+		SELECT id, user_id, idempotency_key, total_amount, notes, status, created_at
+		FROM sales
+		WHERE id = $1
+	`, saleID).Scan(&sale.ID, &sale.UserID, &sale.IdempotencyKey, &sale.TotalAmount, &sale.Notes, &sale.Status, &sale.CreatedAt)
+
+	if err == pgx.ErrNoRows {
+		r.logger.Debug("sale not found", "sale_id", saleID)
+		return nil, errors.New("sale not found")
+	}
+
+	if err != nil {
+		r.logger.Error("failed to get sale by id", "sale_id", saleID, "error", err)
+		return nil, err
+	}
+
+	return &sale, nil
+}
+
+func (r *Repository) ListSales(ctx context.Context, userID string, page int, perPage int) ([]Sale, int, error) {
+	offset := (page - 1) * perPage
+
+	var total int
+	err := r.db.QueryRow(ctx, `
+		SELECT COUNT(*) FROM sales WHERE user_id = $1
+	`, userID).Scan(&total)
+
+	if err != nil {
+		r.logger.Error("failed to count sales", "user_id", userID, "error", err)
+		return nil, 0, err
+	}
+
+	rows, err := r.db.Query(ctx, `
+		SELECT id, user_id, idempotency_key, total_amount, notes, status, created_at
+		FROM sales
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2 OFFSET $3
+	`, userID, perPage, offset)
+
+	if err != nil {
+		r.logger.Error("failed to list sales", "user_id", userID, "error", err)
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var sales []Sale
+	for rows.Next() {
+		var sale Sale
+		err := rows.Scan(&sale.ID, &sale.UserID, &sale.IdempotencyKey, &sale.TotalAmount, &sale.Notes, &sale.Status, &sale.CreatedAt)
+		if err != nil {
+			r.logger.Error("failed to scan sale", "user_id", userID, "error", err)
+			return nil, 0, err
+		}
+		sales = append(sales, sale)
+	}
+
+	if err = rows.Err(); err != nil {
+		r.logger.Error("error iterating sales", "user_id", userID, "error", err)
+		return nil, 0, err
+	}
+
+	r.logger.Debug("sales listed", "user_id", userID, "count", len(sales), "total", total)
+	return sales, total, nil
+}
+
+func (r *Repository) UpdateSaleStatus(ctx context.Context, saleID string, status string) error {
+	result, err := r.db.Exec(ctx, `
+		UPDATE sales
+		SET status = $1, updated_at = NOW()
+		WHERE id = $2
+	`, status, saleID)
+
+	if err != nil {
+		r.logger.Error("failed to update sale status", "sale_id", saleID, "status", status, "error", err)
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		r.logger.Debug("sale not found for update", "sale_id", saleID)
+		return errors.New("sale not found")
+	}
+
+	r.logger.Info("sale status updated", "sale_id", saleID, "status", status)
 	return nil
 }

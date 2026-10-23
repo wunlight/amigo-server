@@ -19,6 +19,8 @@ func RegisterSaleRoutes(r chi.Router, pool *pgxpool.Pool, cfg *config.Config) {
 
 	r.Route("/sales", func(r chi.Router) {
 		r.Use(middleware.AuthMiddleware(authSvc))
+		r.Get("/", saleHandler.List)
 		r.Post("/checkout", saleHandler.Checkout)
+		r.Post("/{id}/refund", saleHandler.Refund)
 	})
 }

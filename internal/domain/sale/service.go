@@ -202,3 +202,34 @@ func (s *Service) buildCheckoutResult(sale *Sale) (*CheckoutResult, error) {
 		Notes:       sale.Notes,
 	}, nil
 }
+
+func (s *Service) ListSales(ctx context.Context, userID string, page int, perPage int) ([]Sale, int, error) {
+	if page < 1 {
+		page = 1
+	}
+	if perPage < 1 || perPage > 100 {
+		perPage = 10
+	}
+
+	return s.repo.ListSales(ctx, userID, page, perPage)
+}
+
+func (s *Service) RefundSale(ctx context.Context, saleID string, userID string) error {
+	// Verify sale exists and belongs to user
+	sale, err := s.repo.GetSaleByID(ctx, saleID)
+	if err != nil {
+		return err
+	}
+
+	if sale.UserID != userID {
+		return errors.New("unauthorized: sale does not belong to user")
+	}
+
+	// Check if sale can be refunded
+	if sale.Status == SaleStatusRefunded {
+		return errors.New("sale is already refunded")
+	}
+
+	// Update status to refunded
+	return s.repo.UpdateSaleStatus(ctx, saleID, SaleStatusRefunded)
+}
